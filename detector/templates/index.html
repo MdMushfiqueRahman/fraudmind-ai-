@@ -1,0 +1,926 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FraudMind AI — Social Engineering Analyzer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #060c18;
+      --surface: #0c1628;
+      --surface2: #101e36;
+      --border: rgba(56, 139, 253, 0.12);
+      --border-glow: rgba(56, 139, 253, 0.35);
+      --accent: #3b82f6;
+      --accent-glow: rgba(59, 130, 246, 0.4);
+      --red: #ef4444;
+      --red-glow: rgba(239, 68, 68, 0.35);
+      --orange: #f97316;
+      --green: #22c55e;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --mono: 'Space Mono', monospace;
+      --display: 'Syne', sans-serif;
+      --body: 'DM Sans', sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--body);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .bg-grid {
+      position: fixed; inset: 0; z-index: 0;
+      background-image:
+        linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+    }
+    .bg-orb {
+      position: fixed; border-radius: 50%; filter: blur(120px);
+      pointer-events: none; z-index: 0;
+    }
+    .orb-1 { width: 600px; height: 600px; background: rgba(59,130,246,0.07); top: -200px; right: -100px; }
+    .orb-2 { width: 500px; height: 500px; background: rgba(239,68,68,0.05); bottom: 0; left: -150px; }
+    .orb-3 { width: 300px; height: 300px; background: rgba(249,115,22,0.04); top: 50%; left: 40%; }
+    .scanline {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px);
+      opacity: 0.5;
+    }
+
+    /* ── NAVBAR ── */
+    .topbar {
+      position: relative;
+      z-index: 100;
+      margin: -24px -24px 32px -24px;
+      background: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+      box-shadow: 0 1px 0 0 rgba(56, 189, 248, 0.06);
+    }
+    .topbar-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 16px 24px;
+      box-sizing: border-box;
+    }
+    .topbar-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: inherit;
+      line-height: 1;
+    }
+    .topbar-brand img {
+      height: 28px;
+      width: auto;
+      object-fit: contain;
+      display: block;
+      flex-shrink: 0;
+      filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.4));
+    }
+    .topbar-brand .brand-text {
+      display: inline-flex;
+      align-items: center;
+      font-size: 1.35rem;
+      font-weight: 700;
+      line-height: 1;
+      color: #fff;
+    }
+    .topbar-brand .brand-accent {
+      color: #38bdf8;
+    }
+    .topbar-icons {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .topbar-icons a {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      color: #94a3b8;
+      text-decoration: none;
+      transition: color 0.2s, background 0.2s, box-shadow 0.2s;
+    }
+    .topbar-icons a:hover {
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.12);
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.1);
+    }
+    .topbar-icons a svg { width: 20px; height: 20px; }
+    @media (max-width: 480px) {
+      .topbar { margin: -24px -24px 24px -24px; }
+      .topbar-inner { padding: 12px 20px; }
+      .topbar-brand img { height: 24px; }
+      .topbar-brand .brand-text { font-size: 1.15rem; }
+      .topbar-icons a { width: 36px; height: 36px; }
+    }
+
+    /* ── MAIN ── */
+    main {
+      position: relative; z-index: 1;
+      padding: 24px 40px 60px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+      margin-bottom: 80px;
+    }
+    .hero-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.72rem;
+      font-family: var(--mono);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      padding: 5px 12px;
+      border: 1px solid rgba(59,130,246,0.3);
+      border-radius: 4px;
+      margin-bottom: 20px;
+      background: rgba(59,130,246,0.06);
+      animation: fadeInDown 0.6s ease both;
+    }
+    .hero-title {
+      font-family: var(--body);
+      font-size: clamp(2rem, 3.8vw, 3.1rem);
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.025em;
+      color: #f1f5f9;
+      animation: fadeInDown 0.6s 0.1s ease both;
+    }
+    .hero-title .accent { color: #f1f5f9; }
+    .hero-title .danger { color: #f1f5f9; }
+    .hero-sub {
+      margin-top: 18px;
+      font-size: 0.95rem;
+      line-height: 1.7;
+      color: var(--muted);
+      max-width: 420px;
+      animation: fadeInDown 0.6s 0.2s ease both;
+    }
+    .threat-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 22px;
+      animation: fadeInDown 0.6s 0.3s ease both;
+    }
+    .ttag {
+      font-size: 0.72rem;
+      font-family: var(--mono);
+      padding: 4px 10px;
+      border-radius: 4px;
+      letter-spacing: 0.05em;
+      border: 1px solid;
+    }
+    .ttag.red { color: var(--red); border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.06); }
+    .ttag.orange { color: var(--orange); border-color: rgba(249,115,22,0.3); background: rgba(249,115,22,0.06); }
+    .ttag.blue { color: var(--accent); border-color: rgba(59,130,246,0.3); background: rgba(59,130,246,0.06); }
+    .ttag.green { color: var(--green); border-color: rgba(34,197,94,0.3); background: rgba(34,197,94,0.06); }
+    .stat-strip {
+      display: flex;
+      gap: 30px;
+      margin-top: 36px;
+      animation: fadeInDown 0.6s 0.4s ease both;
+    }
+    .stat-val { font-family: var(--display); font-size: 1.6rem; font-weight: 800; color: var(--text); }
+    .stat-label { font-size: 0.73rem; color: var(--muted); margin-top: 2px; }
+    .stat-divider { width: 1px; background: var(--border); }
+
+    /* ── FORM CARD ── */
+    .form-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 0 60px rgba(59,130,246,0.06), inset 0 1px 0 rgba(255,255,255,0.04);
+      animation: fadeInRight 0.7s 0.2s ease both;
+      position: relative;
+      overflow: hidden;
+    }
+    .form-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(59,130,246,0.5), transparent);
+    }
+    .form-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .form-card-title {
+      font-family: var(--display);
+      font-size: 0.9rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+    .form-card-badge {
+      font-size: 0.68rem;
+      font-family: var(--mono);
+      letter-spacing: 0.1em;
+      padding: 3px 8px;
+      border-radius: 3px;
+      background: rgba(239,68,68,0.1);
+      color: var(--red);
+      border: 1px solid rgba(239,68,68,0.2);
+    }
+    .field { margin-bottom: 16px; }
+    .field label {
+      display: block;
+      font-size: 0.72rem;
+      font-family: var(--mono);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .field select,
+    .field textarea {
+      width: 100%;
+      background: rgba(15,23,42,0.7);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--body);
+      font-size: 0.88rem;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      appearance: none;
+    }
+    .field select:focus,
+    .field textarea:focus {
+      border-color: var(--border-glow);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+    }
+    .field select {
+      cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 36px;
+    }
+    .field select option { background: #0c1628; }
+    .field textarea { resize: vertical; min-height: 130px; font-size: 0.83rem; line-height: 1.6; }
+    .form-actions { display: flex; gap: 10px; margin-top: 18px; }
+    .btn {
+      flex: 1;
+      padding: 11px 20px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      font-family: var(--body);
+      letter-spacing: 0.01em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: white;
+      box-shadow: 0 0 24px rgba(59,130,246,0.3);
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 0 36px rgba(59,130,246,0.5);
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover {
+      color: var(--text);
+      border-color: var(--border-glow);
+      background: rgba(59,130,246,0.05);
+    }
+    .btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+    .disclaimer {
+      margin-top: 14px;
+      font-size: 0.72rem;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      background: rgba(249,115,22,0.05);
+      border: 1px solid rgba(249,115,22,0.1);
+    }
+    .error {
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.25);
+      color: #fca5a5;
+      padding: 12px 14px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 0.85rem;
+    }
+    .no-key {
+      background: rgba(251,191,36,0.08);
+      border: 1px solid rgba(251,191,36,0.25);
+      color: #fde047;
+      padding: 12px 14px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 0.85rem;
+    }
+    .no-key a { color: var(--accent); }
+
+    /* ── HOW IT WORKS ── */
+    .section-label {
+      font-size: 0.72rem;
+      font-family: var(--mono);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+    .section-title {
+      font-family: var(--display);
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 40px;
+    }
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-bottom: 80px;
+    }
+    .step-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s, box-shadow 0.3s, transform 0.3s;
+    }
+    .step-card:hover {
+      border-color: var(--border-glow);
+      box-shadow: 0 0 40px rgba(59,130,246,0.08);
+      transform: translateY(-2px);
+    }
+    .step-num {
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+      margin-bottom: 14px;
+    }
+    .step-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px;
+      font-size: 1.1rem;
+    }
+    .step-icon.blue { background: rgba(59,130,246,0.12); }
+    .step-icon.red { background: rgba(239,68,68,0.12); }
+    .step-icon.green { background: rgba(34,197,94,0.12); }
+    .step-title { font-family: var(--display); font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+    .step-desc { font-size: 0.83rem; color: var(--muted); line-height: 1.6; }
+
+    /* ── THREAT CARDS ── */
+    .threats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 80px;
+    }
+    .threat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px;
+      transition: all 0.25s;
+    }
+    .threat-card:hover {
+      border-color: var(--border-glow);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+    }
+    .threat-name { font-size: 0.82rem; font-weight: 600; margin-bottom: 4px; }
+    .threat-sub { font-size: 0.72rem; color: var(--muted); }
+    .threat-risk {
+      margin-top: 12px;
+      font-size: 0.65rem;
+      font-family: var(--mono);
+      letter-spacing: 0.08em;
+      padding: 2px 7px;
+      border-radius: 3px;
+      display: inline-block;
+    }
+    .risk-high { background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+    .risk-med { background: rgba(249,115,22,0.1); color: var(--orange); border: 1px solid rgba(249,115,22,0.2); }
+
+    /* ── PREVIEW SECTION ── */
+    .preview-section { margin-bottom: 80px; }
+    .preview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .report-mock {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 0 50px rgba(239,68,68,0.05);
+    }
+    .report-mock-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .rmh-label { font-size: 0.68rem; font-family: var(--mono); letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; }
+    .rmh-title { font-size: 0.9rem; font-weight: 600; }
+    .risk-badge-large {
+      padding: 5px 14px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-family: var(--mono);
+      letter-spacing: 0.08em;
+      font-weight: 700;
+    }
+    .rbadge-high { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+    .report-kpis { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid var(--border); }
+    .report-kpi { padding: 14px 18px; border-right: 1px solid var(--border); }
+    .report-kpi:last-child { border-right: none; }
+    .kpi-label { font-size: 0.65rem; font-family: var(--mono); letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+    .kpi-value { font-size: 1.15rem; font-weight: 700; font-family: var(--display); }
+    .kpi-value.red { color: var(--red); }
+    .kpi-value.orange { color: var(--orange); }
+    .kpi-value.blue { color: var(--accent); }
+    .kpi-sub { font-size: 0.68rem; color: var(--muted); margin-top: 2px; }
+    .report-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+    .rb-section-label { font-size: 0.65rem; font-family: var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+    .flag-list { display: flex; flex-direction: column; gap: 6px; }
+    .flag-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 0.8rem;
+      line-height: 1.5;
+      color: #94a3b8;
+      padding: 8px 12px;
+      border-radius: 6px;
+      background: rgba(239,68,68,0.04);
+      border: 1px solid rgba(239,68,68,0.1);
+    }
+    .flag-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--red); flex-shrink: 0; margin-top: 6px; }
+    .tactic-bars { display: flex; flex-direction: column; gap: 8px; }
+    .tbar-meta { display: flex; justify-content: space-between; margin-bottom: 5px; }
+    .tbar-name { font-size: 0.75rem; color: #94a3b8; }
+    .tbar-pct { font-size: 0.72rem; font-family: var(--mono); color: var(--muted); }
+    .tbar-track { height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden; }
+    .tbar-fill { height: 100%; border-radius: 2px; }
+    .tbar-fill.red { background: linear-gradient(90deg, #ef4444, #f97316); }
+    .tbar-fill.orange { background: linear-gradient(90deg, #f97316, #eab308); }
+    .tbar-fill.blue { background: linear-gradient(90deg, #3b82f6, #6366f1); }
+    .safe-reply-box {
+      background: rgba(34,197,94,0.04);
+      border: 1px solid rgba(34,197,94,0.15);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 0.8rem;
+      color: #94a3b8;
+      line-height: 1.6;
+      font-style: italic;
+    }
+    .info-side { display: flex; flex-direction: column; gap: 14px; justify-content: center; }
+    .info-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+    .info-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .info-title { font-size: 0.85rem; font-weight: 600; margin-bottom: 3px; }
+    .info-sub { font-size: 0.77rem; color: var(--muted); line-height: 1.5; }
+
+    /* ── FOOTER ── */
+    footer {
+      position: relative;
+      z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 30px 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      max-width: 1200px;
+      margin: 0 auto;
+      gap: 12px;
+    }
+    .footer-brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      justify-content: center;
+    }
+    .footer-brand-wrap img {
+      height: 24px;
+      width: auto;
+      object-fit: contain;
+    }
+    .footer-brand {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .footer-brand .footer-ai { color: #38bdf8; }
+    .footer-tagline {
+      font-size: 0.72rem;
+      color: var(--muted);
+      max-width: 520px;
+      line-height: 1.5;
+    }
+
+    @keyframes fadeInDown {
+      from { opacity: 0; transform: translateY(-16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeInRight {
+      from { opacity: 0; transform: translateX(20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .fade-in { animation: fadeIn 0.7s 0.5s ease both; }
+
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; gap: 40px; }
+      .steps { grid-template-columns: 1fr; }
+      .threats { grid-template-columns: repeat(2, 1fr); }
+      .preview-grid { grid-template-columns: 1fr; }
+      main { padding: 24px 20px 40px; }
+      footer { gap: 14px; padding: 24px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-orb orb-1"></div>
+<div class="bg-orb orb-2"></div>
+<div class="bg-orb orb-3"></div>
+<div class="scanline"></div>
+
+<!-- NAVBAR (unchanged) -->
+<header class="topbar">
+  <div class="topbar-inner">
+  <a href="{% url 'home' %}" class="topbar-brand">
+    <img src="{% static 'detector/logo-icon.png' %}" alt="" />
+    <span class="brand-text">FraudMind<span class="brand-accent">AI</span></span>
+  </a>
+  <div class="topbar-icons">
+    <a href="#" title="Help" aria-label="Help">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    </a>
+    <a href="#" title="Settings" aria-label="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </a>
+  </div>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="hero-left">
+      <div class="hero-label">AI-Powered Threat Detection</div>
+      <h1 class="hero-title">
+        Unmask <span class="accent">Social</span><br>
+        Engineering &amp;<br>
+        <span class="danger">Phishing</span> Attacks
+      </h1>
+      <p class="hero-sub">
+        Paste any suspicious message. FraudMind AI dissects manipulation tactics, identifies red flags, and gives you an instant risk score — powered by GPT-4.
+      </p>
+      <div class="threat-tags">
+        <span class="ttag red">Phishing</span>
+        <span class="ttag orange">Job Scam</span>
+        <span class="ttag blue">Crypto Fraud</span>
+        <span class="ttag green">Tech Support</span>
+        <span class="ttag red">Romance Scam</span>
+        <span class="ttag orange">Tax Scam</span>
+        <span class="ttag blue">Delivery Scam</span>
+        <span class="ttag green">Giveaway</span>
+      </div>
+      <div class="stat-strip">
+        <div class="stat">
+          <div class="stat-val">GPT-4</div>
+          <div class="stat-label">Model Engine</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+          <div class="stat-val">11</div>
+          <div class="stat-label">Output Fields</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+          <div class="stat-val">&lt;3s</div>
+          <div class="stat-label">Analysis Time</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <div class="form-card-header">
+        <div class="form-card-title">Threat Analyzer</div>
+        <div class="form-card-badge">LIVE</div>
+      </div>
+      {% if not has_api_key %}
+      <div class="no-key">
+        <strong>OpenAI API key not set.</strong> Create a <code>.env</code> file with <code>OPENAI_API_KEY=your-key</code>. Get a key at <a href="https://platform.openai.com/api-keys">platform.openai.com</a>.
+      </div>
+      {% endif %}
+      {% if error %}
+      <div class="error">{{ error }}</div>
+      {% endif %}
+
+      <form action="{% url 'analyze' %}" method="post" id="analyzeForm">
+        {% csrf_token %}
+        <div class="field">
+          <label for="message_type">Message Type</label>
+          <select name="message_type" id="message_type">
+            <option value="email" {% if message_type == "email" %}selected{% endif %}>Email</option>
+            <option value="sms" {% if message_type == "sms" %}selected{% endif %}>SMS</option>
+            <option value="social_media" {% if message_type == "social_media" %}selected{% endif %}>Social media</option>
+            <option value="in_app" {% if message_type == "in_app" %}selected{% endif %}>In-app message</option>
+            <option value="other" {% if message_type == "other" %}selected{% endif %}>Other</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="message">Message Content</label>
+          <textarea name="message" id="message" placeholder="Paste the suspicious message here...
+
+e.g. 'Congratulations! You've been selected for our exclusive crypto investment program. Act now to secure 500% returns...'">{{ message|default:"" }}</textarea>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" id="loadDemo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+            Load Demo
+          </button>
+          <button type="submit" class="btn btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            Analyze Threat
+          </button>
+        </div>
+      </form>
+      <div class="disclaimer">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        AI-based assessment. Always verify with official sources.
+      </div>
+    </div>
+  </section>
+
+  <section class="fade-in">
+    <div class="section-label">Process</div>
+    <div class="section-title">How It Works</div>
+    <div class="steps">
+      <div class="step-card">
+        <div class="step-num">STEP 01</div>
+        <div class="step-icon blue">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        </div>
+        <div class="step-title">Paste &amp; Classify</div>
+        <div class="step-desc">Input the suspicious message and select the communication channel. Context helps improve detection accuracy.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">STEP 02</div>
+        <div class="step-icon red">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        </div>
+        <div class="step-title">AI Deep Analysis</div>
+        <div class="step-desc">GPT-4 scans for manipulation tactics, urgency triggers, social engineering patterns, and attacker intent signals.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">STEP 03</div>
+        <div class="step-icon green">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div class="step-title">Risk Dashboard</div>
+        <div class="step-desc">Get a full threat report: risk score, tactic breakdown, red flags, safe reply suggestion, and an action plan.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="fade-in">
+    <div class="section-label">Coverage</div>
+    <div class="section-title">Detected Threat Types</div>
+    <div class="threats">
+      <div class="threat-card">
+        <div class="threat-name">Phishing</div>
+        <div class="threat-sub">Credential theft via fake links and impersonation</div>
+        <div class="threat-risk risk-high">HIGH RISK</div>
+      </div>
+      <div class="threat-card">
+        <div class="threat-name">Job Scam</div>
+        <div class="threat-sub">Fake employment offers targeting job seekers</div>
+        <div class="threat-risk risk-high">HIGH RISK</div>
+      </div>
+      <div class="threat-card">
+        <div class="threat-name">Crypto Scam</div>
+        <div class="threat-sub">Investment fraud with guaranteed return promises</div>
+        <div class="threat-risk risk-high">HIGH RISK</div>
+      </div>
+      <div class="threat-card">
+        <div class="threat-name">Romance Scam</div>
+        <div class="threat-sub">Emotional manipulation to extract money or information</div>
+        <div class="threat-risk risk-high">HIGH RISK</div>
+      </div>
+      <div class="threat-card">
+        <div class="threat-name">Tech Support</div>
+        <div class="threat-sub">Fake IT alerts pushing remote access or payment</div>
+        <div class="threat-risk risk-med">MED RISK</div>
+      </div>
+      <div class="threat-card">
+        <div class="threat-name">Delivery Scam</div>
+        <div class="threat-sub">Fake package notifications harvesting personal data</div>
+        <div class="threat-risk risk-med">MED RISK</div>
+      </div>
+      <div class="threat-card">
+        <div class="threat-name">Giveaway</div>
+        <div class="threat-sub">"You've won" prize scams requiring upfront fees</div>
+        <div class="threat-risk risk-med">MED RISK</div>
+      </div>
+      <div class="threat-card">
+        <div class="threat-name">Tax Scam</div>
+        <div class="threat-sub">IRS/HMRC impersonation with threats of arrest</div>
+        <div class="threat-risk risk-high">HIGH RISK</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="preview-section fade-in">
+    <div class="section-label">Output Preview</div>
+    <div class="section-title">What You Get After Analysis</div>
+    <div class="preview-grid">
+      <div class="report-mock">
+        <div class="report-mock-header">
+          <div class="rmh-left">
+            <div class="rmh-label">Threat Report</div>
+            <div class="rmh-title">Crypto Investment DM</div>
+          </div>
+          <div class="risk-badge-large rbadge-high">HIGH RISK</div>
+        </div>
+        <div class="report-kpis">
+          <div class="report-kpi">
+            <div class="kpi-label">Pressure Score</div>
+            <div class="kpi-value red">87<span style="font-size:0.8rem;font-weight:400;color:var(--muted)">/100</span></div>
+            <div class="kpi-sub">Extreme urgency</div>
+          </div>
+          <div class="report-kpi">
+            <div class="kpi-label">Scam Type</div>
+            <div class="kpi-value orange" style="font-size:0.88rem;">Crypto Scam</div>
+            <div class="kpi-sub">Investment fraud</div>
+          </div>
+          <div class="report-kpi">
+            <div class="kpi-label">Confidence</div>
+            <div class="kpi-value blue">High</div>
+            <div class="kpi-sub">GPT-4 certainty</div>
+          </div>
+        </div>
+        <div class="report-body">
+          <div>
+            <div class="rb-section-label">Red Flags Detected</div>
+            <div class="flag-list">
+              <div class="flag-item"><div class="flag-dot"></div>Guaranteed 40% monthly returns — no legitimate investment can promise this</div>
+              <div class="flag-item"><div class="flag-dot"></div>Requests upfront payment in cryptocurrency with no paper trail</div>
+              <div class="flag-item"><div class="flag-dot"></div>Unsolicited DM with artificial scarcity ("only 5 spots left")</div>
+            </div>
+          </div>
+          <div>
+            <div class="rb-section-label">Tactic Intensity</div>
+            <div class="tactic-bars">
+              <div class="tbar-row">
+                <div class="tbar-meta"><span class="tbar-name">FOMO Exploitation</span><span class="tbar-pct">92%</span></div>
+                <div class="tbar-track"><div class="tbar-fill red" style="width:92%"></div></div>
+              </div>
+              <div class="tbar-row">
+                <div class="tbar-meta"><span class="tbar-name">Urgency Creation</span><span class="tbar-pct">88%</span></div>
+                <div class="tbar-track"><div class="tbar-fill red" style="width:88%"></div></div>
+              </div>
+              <div class="tbar-row">
+                <div class="tbar-meta"><span class="tbar-name">Authority Fabrication</span><span class="tbar-pct">74%</span></div>
+                <div class="tbar-track"><div class="tbar-fill orange" style="width:74%"></div></div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="rb-section-label">Suggested Safe Reply</div>
+            <div class="safe-reply-box">"Thank you for reaching out. I'm not interested in investment opportunities at this time. Please do not contact me again."</div>
+          </div>
+        </div>
+      </div>
+      <div class="info-side">
+        <div class="info-card">
+          <div class="info-icon" style="background:rgba(59,130,246,0.12)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </div>
+          <div class="info-text">
+            <div class="info-title">11 Analysis Fields</div>
+            <div class="info-sub">Structured JSON output with risk level, tactics, red flags, safe reply &amp; action plan.</div>
+          </div>
+        </div>
+        <div class="info-card">
+          <div class="info-icon" style="background:rgba(239,68,68,0.12)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.8"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </div>
+          <div class="info-text">
+            <div class="info-title">Real-time Analysis</div>
+            <div class="info-sub">Results delivered in under 3 seconds. No data stored, no accounts required.</div>
+          </div>
+        </div>
+        <div class="info-card">
+          <div class="info-icon" style="background:rgba(34,197,94,0.12)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <div class="info-text">
+            <div class="info-title">Actionable Intelligence</div>
+            <div class="info-sub">Don't just detect — get a tailored safe reply and step-by-step action plan.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="footer-brand-wrap">
+    <img src="{% static 'detector/logo-icon.png' %}" alt="" />
+    <span class="footer-brand">FraudMind <span class="footer-ai">AI</span></span>
+  </div>
+  <p class="footer-tagline">AI-powered social engineering analysis • Not a substitute for professional advice</p>
+</footer>
+
+<script>
+  const demos = [
+    "Dear Customer, your account has been suspended. Verify within 2 hours: http://boa-security-alert.com",
+    "Congratulations! You've been selected for a $500 Walmart gift card. Claim now: http://claim-walmart-gift.tk",
+    "Hi, I'm Mark. I saw your profile and we have so much in common. I work on an oil rig and can't video call, but I'd love to get to know you. Can you send me a small gift card so I can get internet?",
+    "Your Apple ID was used to sign in to a new device. If this wasn't you, tap here to secure your account: http://apple-id-secure.com",
+    "IRS Notice: You have an outstanding tax debt. Pay within 48 hours to avoid legal action. Call 555-0199 or visit http://irs-payment-portal.com",
+    "Your package could not be delivered. Confirm your address and pay a small re-delivery fee: http://fedex-redelivery.com",
+    "We're hiring! Work from home, $200/day. No experience needed. Send your bank details for direct deposit to get started.",
+    "Microsoft Support: Your PC has critical viruses. Call us now at 1-800-XXX-XXXX. We will fix it remotely for a one-time fee of $299.",
+  ];
+  document.getElementById('loadDemo').addEventListener('click', function () {
+    const ta = document.getElementById('message');
+    ta.value = demos[Math.floor(Math.random() * demos.length)];
+  });
+</script>
+</body>
+</html>

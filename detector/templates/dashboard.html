@@ -1,0 +1,357 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FraudMind AI — Risk Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg-dark: #0b1220;
+      --bg-card: #0f172a;
+      --border: rgba(148, 163, 184, 0.12);
+      --glow: rgba(56, 189, 248, 0.08);
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --green: #22c55e;
+      --orange: #f97316;
+      --red: #ef4444;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0b1220 0%, #0f172a 50%, #0b1220 100%);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      padding: 20px;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: inherit;
+    }
+    .topbar-brand img {
+      height: 28px;
+      width: auto;
+      object-fit: contain;
+      display: block;
+    }
+    .topbar-brand .brand-text {
+      font-size: 1.35rem;
+      font-weight: 700;
+      line-height: 1;
+      color: #fff;
+    }
+    .topbar-brand .brand-accent {
+      color: var(--accent);
+    }
+    .topbar-icons {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .topbar-icons a {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+      padding: 0 12px;
+      border-radius: 10px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.2s, background 0.2s;
+    }
+    .topbar-icons a.icon-only {
+      width: 40px;
+      padding: 0;
+    }
+    .topbar-icons a:hover {
+      color: var(--accent);
+      background: rgba(56, 189, 248, 0.1);
+    }
+    .topbar-icons a svg {
+      width: 20px;
+      height: 20px;
+    }
+    @media (max-width: 480px) {
+      .topbar { margin-bottom: 20px; }
+      .topbar-brand img { height: 24px; }
+      .topbar-brand .brand-text { font-size: 1.15rem; }
+      .topbar-icons a.icon-only { width: 36px; height: 36px; }
+      .topbar-icons a:not(.icon-only) { padding: 0 8px; font-size: 0.85rem; }
+    }
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.25), 0 0 0 1px rgba(56, 189, 248, 0.03);
+    }
+    .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    @media (max-width: 900px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 500px) { .kpi-row { grid-template-columns: 1fr; } }
+    .kpi-card { padding: 16px; }
+    .kpi-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 6px; }
+    .risk-badge {
+      font-size: 1.5rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em;
+      padding: 12px 20px; border-radius: 8px; text-align: center;
+    }
+    .risk-badge.low   { background: rgba(34, 197, 94, 0.2);  color: var(--green); border: 1px solid rgba(34, 197, 94, 0.4);  box-shadow: 0 0 20px rgba(34, 197, 94, 0.15); }
+    .risk-badge.medium{ background: rgba(249, 115, 22, 0.2); color: var(--orange); border: 1px solid rgba(249, 115, 22, 0.4); box-shadow: 0 0 20px rgba(249, 115, 22, 0.15); }
+    .risk-badge.high  { background: rgba(239, 68, 68, 0.2);  color: var(--red);   border: 1px solid rgba(239, 68, 68, 0.4);  box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);  }
+    .scam-type-val { font-size: 1.1rem; font-weight: 600; color: #fff; text-transform: capitalize; }
+    .pressure-bar-wrap { height: 8px; background: rgba(148, 163, 184, 0.2); border-radius: 4px; overflow: hidden; margin-top: 8px; }
+    .pressure-bar { height: 100%; width: 0; border-radius: 4px; transition: width 0.7s ease-out; }
+    .pressure-bar.low { background: var(--green); }
+    .pressure-bar.medium { background: var(--orange); }
+    .pressure-bar.high { background: var(--red); }
+    .pressure-score { font-size: 1.25rem; font-weight: 700; color: #fff; }
+    .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .pill { background: rgba(148, 163, 184, 0.15); color: var(--text); padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; border: 1px solid var(--border); }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    @media (max-width: 1000px) { .grid-2 { grid-template-columns: 1fr; } }
+    .panel-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 12px; }
+    .original-msg { font-family: ui-monospace, monospace; font-size: 0.9rem; white-space: pre-wrap; word-break: break-all; background: rgba(0,0,0,0.2); padding: 14px; border-radius: 8px; border: 1px solid var(--border); }
+    .red-flags-list, .wants-list { list-style: none; padding: 0; margin: 0; }
+    .red-flags-list li, .wants-list li { padding: 6px 0; padding-left: 18px; position: relative; color: #fca5a5; }
+    .red-flags-list li::before { content: "▸"; position: absolute; left: 0; color: var(--red); }
+    .wants-list li::before { content: "▸"; position: absolute; left: 0; color: var(--red); }
+    .donut-wrap { position: relative; width: 200px; height: 200px; margin: 0 auto; }
+    .donut-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
+    .donut-center .pct { font-size: 2rem; font-weight: 800; color: #fff; display: block; }
+    .donut-center .label { font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); }
+    .safe-reply-box { font-family: ui-monospace, monospace; font-size: 0.9rem; background: rgba(0,0,0,0.2); padding: 14px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 10px; white-space: pre-wrap; }
+    .btn-copy { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); background: rgba(56, 189, 248, 0.15); color: var(--accent); cursor: pointer; font-size: 0.9rem; }
+    .btn-copy:hover { background: rgba(56, 189, 248, 0.25); }
+    .action-list { list-style: none; padding: 0; margin: 0; }
+    .action-list li { padding: 6px 0; padding-left: 18px; position: relative; }
+    .action-list.what-to-do li::before { content: "✓"; position: absolute; left: 0; color: var(--green); }
+    .action-list.what-not-to-do li::before { content: "✗"; position: absolute; left: 0; color: var(--red); }
+    .bar-list { margin-top: 12px; }
+    .bar-item { margin-bottom: 14px; }
+    .bar-item .bar-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; gap: 12px; }
+    .bar-item label { font-size: 0.85rem; color: var(--text-muted); margin: 0; flex-shrink: 0; }
+    .bar-item .bar-pct { font-size: 0.75rem; font-family: ui-monospace, monospace; color: var(--text-muted); letter-spacing: 0.02em; flex-shrink: 0; }
+    .bar-item .bar { height: 8px; background: rgba(148, 163, 184, 0.2); border-radius: 4px; overflow: hidden; }
+    .bar-item .bar .tactic-bar { display: block; height: 100%; width: 0; border-radius: 4px; transition: width 0.7s ease-out; }
+    .bar-item .bar .tactic-bar.low { background: linear-gradient(90deg, rgba(34, 197, 94, 0.85), var(--green)); }
+    .bar-item .bar .tactic-bar.medium { background: linear-gradient(90deg, rgba(249, 115, 22, 0.85), var(--orange)); }
+    .bar-item .bar .tactic-bar.high { background: linear-gradient(90deg, rgba(239, 68, 68, 0.85), var(--red)); }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a href="{% url 'home' %}" class="topbar-brand">
+      <img src="{% static 'detector/logo-icon.png' %}" alt="" />
+      <span class="brand-text">FraudMind <span class="brand-accent">AI</span></span>
+    </a>
+    <div class="topbar-icons">
+      <a href="{% url 'home' %}">← New analysis</a>
+      <a href="#" class="icon-only" title="Help" aria-label="Help">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </a>
+      <a href="#" class="icon-only" title="Settings" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </a>
+    </div>
+  </header>
+
+  <!-- KPI row -->
+  <div class="kpi-row">
+    <div class="card kpi-card">
+      <div class="kpi-label">Risk</div>
+      <div class="risk-badge {{ risk_level }}">{{ risk_level|upper }}</div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Scam type</div>
+      <div class="scam-type-val">{{ scam_type|default:"—" }}</div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Pressure score</div>
+      <div class="pressure-score">{{ pressure_score }} / 100</div>
+      <div class="pressure-bar-wrap">
+        <div class="pressure-bar" id="pressureBarFill" data-pressure="{{ pressure_score }}" data-risk="{{ risk_level }}" data-animate="1"></div>
+      </div>
+    </div>
+    <div class="card kpi-card">
+      <div class="kpi-label">Primary tactics</div>
+      <div class="pills">
+        {% for t in primary_tactics %}
+        <span class="pill">{{ t }}</span>
+        {% empty %}
+        <span class="pill">—</span>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <!-- Left panel -->
+    <div>
+      <div class="card">
+        <div class="panel-title">Original message</div>
+        <div class="original-msg">{{ original_message|default:"" }}</div>
+      </div>
+      <div class="card">
+        <div class="panel-title">Red flags</div>
+        <ul class="red-flags-list">
+          {% for f in red_flags %}
+          <li>{{ f }}</li>
+          {% empty %}
+          <li>None identified</li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="card">
+        <div class="panel-title">What attacker likely wants</div>
+        <ul class="wants-list">
+          {% with summary=one_sentence_summary|default:"" %}
+          {% if summary %}
+          <li>{{ summary }}</li>
+          {% else %}
+          <li>Based on scam type and red flags: credentials or financial gain.</li>
+          {% endif %}
+          {% endwith %}
+        </ul>
+      </div>
+    </div>
+
+    <!-- Right panel -->
+    <div>
+      <div class="card">
+        <div class="panel-title">Risk analysis</div>
+        <div class="bar-list" id="tacticsBarList">
+          {% for item in tactic_scores %}
+          <div class="bar-item">
+            <div class="bar-row">
+              <label>{{ item.name }}</label>
+              <span class="bar-pct" data-score="{{ item.score }}">{{ item.score }}%</span>
+            </div>
+            <div class="bar"><span class="tactic-bar" data-score="{{ item.score }}" data-risk="{{ risk_level }}"></span></div>
+          </div>
+          {% empty %}
+          <div class="bar-item">
+            <div class="bar-row">
+              <label>—</label>
+              <span class="bar-pct" data-score="0">0%</span>
+            </div>
+            <div class="bar"><span class="tactic-bar" data-score="0"></span></div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="card">
+        <div class="panel-title">Risk meter</div>
+        <div class="donut-wrap">
+          <canvas id="donutChart" width="200" height="200"></canvas>
+          <div class="donut-center">
+            <span class="pct" id="riskPct">{{ risk_pct }}%</span>
+            <span class="label">Risk</span>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="panel-title">Safe reply</div>
+        <div class="safe-reply-box" id="safeReplyText">{{ safe_reply|default:"I will verify through official channels. Please do not contact me further." }}</div>
+        <button type="button" class="btn-copy" id="copySafeReply">Copy</button>
+      </div>
+      <div class="card">
+        <div class="panel-title">Action plan</div>
+        <p style="font-size:0.85rem; color: var(--text-muted); margin-bottom: 10px;">What to do</p>
+        <ul class="action-list what-to-do">
+          {% for i in what_to_do %}
+          <li>{{ i }}</li>
+          {% empty %}
+          <li>Verify with the real organization via official website or phone.</li>
+          <li>Do not click links or call numbers from the message.</li>
+          {% endfor %}
+        </ul>
+        <p style="font-size:0.85rem; color: var(--text-muted); margin: 14px 0 10px;">What not to do</p>
+        <ul class="action-list what-not-to-do">
+          {% for i in what_not_to_do %}
+          <li>{{ i }}</li>
+          {% empty %}
+          <li>Do not send money or personal/financial details.</li>
+          <li>Do not click links in the message.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  {{ dashboard_data|json_script:"dashboard-data" }}
+  <script>
+    (function () {
+      var data = JSON.parse(document.getElementById('dashboard-data').textContent);
+      var riskLevel = data.risk_level || 'low';
+      var riskPct = data.risk_pct || 0;
+      var pressureScore = Math.max(0, Math.min(100, parseInt(data.pressure_score, 10) || 50));
+      var tacticScores = data.tactic_scores || [];
+
+      function intensityClass(score) {
+        var s = Math.max(0, Math.min(100, parseInt(score, 10) || 0));
+        if (s <= 33) return 'low';
+        if (s <= 66) return 'medium';
+        return 'high';
+      }
+
+      function animateBars() {
+        var pressureBar = document.getElementById('pressureBarFill');
+        if (pressureBar) {
+          pressureBar.classList.add(pressureBar.getAttribute('data-risk') || riskLevel);
+          pressureBar.style.width = (pressureBar.getAttribute('data-pressure') || pressureScore) + '%';
+        }
+        document.querySelectorAll('.tactic-bar[data-score]').forEach(function (el) {
+          var score = Math.max(0, Math.min(100, parseInt(el.getAttribute('data-score'), 10) || 0));
+          el.classList.add(intensityClass(score));
+          el.style.width = score + '%';
+        });
+      }
+
+      requestAnimationFrame(function () {
+        requestAnimationFrame(animateBars);
+      });
+
+      var colors = riskLevel === 'high' ? ['#ef4444', '#f97316', '#64748b'] : riskLevel === 'medium' ? ['#f97316', '#eab308', '#64748b'] : ['#22c55e', '#94a3b8', '#64748b'];
+      new Chart(document.getElementById('donutChart'), {
+        type: 'doughnut',
+        data: {
+          labels: ['Risk', 'Other'],
+          datasets: [{ data: [riskPct, 100 - riskPct], backgroundColor: [colors[0], '#1e293b'], borderWidth: 0 }]
+        },
+        options: {
+          cutout: '65%',
+          plugins: { legend: { display: false } },
+          maintainAspectRatio: true
+        }
+      });
+
+      document.getElementById('copySafeReply').addEventListener('click', function () {
+        var el = document.getElementById('safeReplyText');
+        var text = el.innerText || el.textContent;
+        navigator.clipboard.writeText(text).then(function () {
+          var btn = document.getElementById('copySafeReply');
+          btn.textContent = 'Copied!';
+          setTimeout(function () { btn.textContent = 'Copy'; }, 2000);
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
