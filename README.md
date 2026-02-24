@@ -1,6 +1,18 @@
 # FraudMind AI
 
-AI-powered social engineering and phishing analyzer with a dark cybersecurity dashboard (SOC-style UI). Django app that runs locally; no login or database history required.
+A Cybersecurity AI Platform
+
+Designed and developed a full-stack AI-powered phishing and social engineering analyzer using Django and the OpenAI Responses API.
+
+Implemented structured JSON-based risk assessment including risk level, scam classification, pressure scoring, manipulation tactics, and actionable response guidance.
+
+Built a dark SOC-style cybersecurity dashboard with KPI cards, visualization charts, tactic indicators, and copy-ready safe response generation.
+
+Integrated secure API key management using environment variables (.env), with strict separation of secrets and production-ready configuration practices.
+
+Engineered robust error handling for API failures and malformed responses to ensure system reliability.
+
+Developed and tested multiple real-world scam scenarios including phishing, tax fraud, romance scams, delivery scams, and tech support fraud.
 
 ## Setup (Windows)
 
