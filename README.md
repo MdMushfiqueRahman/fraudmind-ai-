@@ -21,6 +21,9 @@
 ![Security](https://img.shields.io/badge/Security-Environment_Variables-red?style=for-the-badge)
 ![Privacy](https://img.shields.io/badge/Privacy-No_Data_Storage-lightgrey?style=for-the-badge)
 ![UI](https://img.shields.io/badge/UI-SOC_Style-black?style=for-the-badge)
+![HTML5](https://img.shields.io/badge/HTML5-Markup-E34F26?style=for-the-badge&logo=html5&logoColor=white)
+![CSS3](https://img.shields.io/badge/CSS3-Styling-1572B6?style=for-the-badge&logo=css3&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-ES6-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)
 
 --- 
